@@ -39,7 +39,21 @@ export const gameSlice = createSlice({
   name: "game",
   // `createSlice` will infer the state type from the `initialState` argument
   initialState,
-  reducers: reducers,
+  reducers: {
+    ...reducers,
+    check: (state, { payload }) => {
+      state.check = payload;
+    },
+    unCheck: (state) => {
+      state.check = null;
+    },
+    switchTurns: (state) => {
+      if (state.turn === "black") {
+        state.fullMoves++;
+        state.turn = "white";
+      } else state.turn = "black";
+    },
+  },
 });
 
 export const gameActions = gameSlice.actions;

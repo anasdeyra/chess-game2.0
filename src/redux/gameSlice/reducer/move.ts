@@ -3,18 +3,15 @@ import { WritableDraft } from "immer/dist/internal";
 import { GameState } from "../gameSlice";
 
 export default function move(
-  { board, fullMoves, turn }: WritableDraft<GameState>,
+  state: WritableDraft<GameState>,
   { payload: { from, to } }: PayloadAction<ChessMove>
 ) {
-  const piece = board[from];
-  if (!board[from] || turn !== piece.color || to === from) return;
+  const piece = state.board[from];
+  if (!state.board[from] || state.turn !== piece.color || to === from) return;
 
-  board[to] = board[from];
-  delete board[from];
+  state.board[to] = state.board[from];
+  delete state.board[from];
+  state.board[to].position = to;
 
   piece.moves++;
-  if (turn === "black") {
-    fullMoves++;
-    turn = "white";
-  } else turn = "black";
 }
