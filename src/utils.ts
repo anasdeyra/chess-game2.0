@@ -1,10 +1,14 @@
-export function calcLegalMoves(board: Board, square: Square) {
+export function calcLegalMoves(
+  board: Board,
+  square: Square,
+  enPassante: string | null = null
+) {
   const piece: Piece | undefined = board[square];
   if (!piece) return [];
 
   let moves: string[] = [];
   if (piece.type === "k") moves = calcKingLegalMoves(board, square);
-  else moves = getDefaultMoves(board, square);
+  else moves = getDefaultMoves(board, square, enPassante);
 
   if (piece.isPinned) {
     const pinnerPosition = getPinner(board, square);
@@ -30,7 +34,11 @@ export function calcLegalMoves(board: Board, square: Square) {
   return moves;
 }
 
-export function getDefaultMoves(board: Board, square: Square) {
+export function getDefaultMoves(
+  board: Board,
+  square: Square,
+  enPassante: string | null = null
+) {
   const piece: Piece | undefined = board[square];
   if (!piece) return [];
 
@@ -41,7 +49,34 @@ export function getDefaultMoves(board: Board, square: Square) {
       moves = getKingDefaultMoves(board, square);
       break;
     case "p":
-      moves = getPawnDefaultMoves(board, square);
+      moves = getPawnDefaultMoves(board, square, enPassante);
+      break;
+    case "n":
+      moves = getKnightDefaultMoves(board, square);
+      break;
+    default:
+      moves = getPieceDefaultMoves(board, square);
+      break;
+  }
+  return moves;
+}
+
+export function getAttackMoves(
+  board: Board,
+  square: Square,
+  enPassante: string | null = null
+) {
+  const piece: Piece | undefined = board[square];
+  if (!piece) return [];
+
+  let moves: string[] = [];
+
+  switch (piece.type) {
+    case "k":
+      moves = getKingDefaultMoves(board, square);
+      break;
+    case "p":
+      moves = getPawnDefaultAttacks(board, square, enPassante);
       break;
     case "n":
       moves = getKnightDefaultMoves(board, square);
@@ -71,25 +106,97 @@ export function getKingDefaultMoves(board: Board, position: Square) {
 function calcKingLegalMoves(board: Board, position: Square) {
   const king: Piece = board[position];
   const moves: Square[] = getKingDefaultMoves(board, position);
+  const castleSquares = getAvailableCastles(board, king.color);
+  moves.push(...castleSquares);
 
   // remove squares attacked by enemies
   const color = king.color === "black" ? "white" : "black";
   const attackedSquares = getAttackedSquares(board, color);
+  const _moves = moves.filter((sq) => !attackedSquares.includes(sq));
+  const illegalMoves: string[] = [];
+  _moves.forEach((move) => {
+    const _board = { ...board };
+    _board[move] = _board[position];
+    delete _board[position];
+    if (isKingChecked(_board, king.color)) illegalMoves.push(move);
+  });
 
-  return moves.filter((sq) => !attackedSquares.includes(sq));
+  return _moves.filter((sq) => !illegalMoves.includes(sq));
 }
 
-function getPawnDefaultMoves(board: Board, position: Square) {
+function getPawnDefaultMoves(
+  board: Board,
+  position: Square,
+  enPassante: string | null = null
+) {
   const pawn: Piece = board[position];
   let moves: Square[] = [];
   const offset = pawn.color === "white" ? 1 : -1;
 
+  if (enPassante) {
+    const enPassentePos = squaremoveCords(enPassante);
+    const pawnPos = squaremoveCords(position);
+
+    const areSameRank = enPassentePos.rank === pawnPos.rank;
+    const fileDiff = enPassentePos.file - pawnPos.file;
+
+    if ((fileDiff === 1 || fileDiff === -1) && areSameRank)
+      moves.push(calcSquare(position, { rank: offset, file: fileDiff })!);
+  }
+
   //marsh 1 square
-  moves.push(calcSquare(position, { file: 0, rank: offset * 1 })!);
+  const square1 = calcSquare(position, { file: 0, rank: offset * 1 });
+  if (square1 && !board[square1!]) moves.push(square1!);
 
   //marsh 2 squares if first move
-  if (pawn.moves === 0)
-    moves.push(calcSquare(position, { file: 0, rank: offset * 2 })!);
+  const square2 = calcSquare(position, { file: 0, rank: offset * 2 });
+  if (
+    pawn.moves === 0 &&
+    square2 &&
+    !board[square2!] &&
+    square1 &&
+    !board[square1!]
+  )
+    moves.push(square2!);
+
+  // exclude squares with pieces in them
+  moves = [...moves.filter((sq) => !board[sq])];
+
+  // add capture moves if available
+  const captureSquares = [
+    calcSquare(position, { file: 1, rank: offset }),
+    calcSquare(position, { file: -1, rank: offset }),
+  ];
+
+  captureSquares.forEach((square) => {
+    if (square && board[square] && board[square].color !== pawn.color)
+      moves.push(square);
+  });
+
+  //enpassante
+
+  return moves;
+}
+
+function getPawnDefaultAttacks(
+  board: Board,
+  position: Square,
+  enPassante: string | null = null
+) {
+  const pawn: Piece = board[position];
+  let moves: Square[] = [];
+  const offset = pawn.color === "white" ? 1 : -1;
+
+  if (enPassante) {
+    const enPassentePos = squaremoveCords(enPassante);
+    const pawnPos = squaremoveCords(position);
+
+    const areSameRank = enPassentePos.rank === pawnPos.rank;
+    const fileDiff = enPassentePos.file - pawnPos.file;
+
+    if ((fileDiff === 1 || fileDiff === -1) && areSameRank)
+      moves.push(calcSquare(position, { rank: offset, file: fileDiff })!);
+  }
 
   // exclude squares with pieces in them
   moves = [...moves.filter((sq) => !board[sq])];
@@ -213,7 +320,7 @@ export function getAttackedSquares(board: Board, color: PieceColor) {
   const squares: Square[] = [];
   for (const square in board) {
     const piece: Piece = board[square];
-    if (piece.color === color) squares.push(...getDefaultMoves(board, square));
+    if (piece.color === color) squares.push(...getAttackMoves(board, square));
   }
   return squares;
 }
@@ -278,15 +385,12 @@ export function getLineOfSight(
     try {
       while (square) {
         const detectedPiece: Piece | undefined = board[square];
-        /*
-        missing pinning logic
-        */
         if (detectedPiece) {
-          if (detectedPiece.color === piece.color) throw "a";
           if (square === targetSquare) {
             found = true;
             throw "a";
           }
+          if (detectedPiece.color === piece.color) throw "a";
         }
 
         _squares.push(square);
@@ -423,4 +527,107 @@ export function getPlayerLegalMoves(board: Board, color: PieceColor) {
     if (piece.color === color) moves.push(...calcLegalMoves(board, square));
   }
   return moves;
+}
+
+export function getPiecesBetweenRookAndKing(
+  board: Board,
+  rookPosition: Square
+) {
+  const squares: string[] = [];
+  const rook = board[rookPosition];
+
+  OFFSETS.rook.every((offset) => {
+    //squares counter in current direction
+    let index = 1;
+
+    //destination square
+    let square = calcSquare(rookPosition, {
+      file: offset[0] * index,
+      rank: offset[1] * index,
+    });
+
+    const _squares: Square[] = [];
+    let found = false;
+
+    //loop while destination square is a valid square and the piece does not colide with another piece
+    try {
+      while (square) {
+        const detectedPiece: Piece | undefined = board[square];
+        if (detectedPiece) {
+          if (square === getKingPosition(board, rook.color)) {
+            found = true;
+            throw "a";
+          }
+        }
+
+        _squares.push(square);
+        index++;
+        square = calcSquare(rookPosition, {
+          file: offset[0] * index,
+          rank: offset[1] * index,
+        });
+      }
+    } catch {}
+    if (found) {
+      squares.push(..._squares);
+      return false;
+    }
+    return true;
+  });
+
+  const pieces = squares
+    .filter((square) => !!board[square])
+    .map((square) => board[square]);
+  return pieces;
+}
+
+export function getAvailableCastles(board: Board, color: PieceColor) {
+  const availableSides: string[] = [];
+
+  const king = board[getKingPosition(board, color)];
+
+  if (isKingChecked(board, color) || king.moves > 0) return availableSides;
+  const kingSideSquares = color === "white" ? ["f1", "g1"] : ["f8", "g8"];
+  const kingSideRookSquare = color === "white" ? "h1" : "h8";
+  const queenSideSquares = color === "white" ? ["d1", "c1"] : ["c8", "d8"];
+  const queenSideRookSquare = color === "white" ? "a1" : "a8";
+
+  const enemyColor = color === "white" ? "black" : "white";
+  const attackedSquares = getAttackedSquares(board, enemyColor);
+
+  if (
+    !attackedSquares.includes(kingSideSquares[0]) &&
+    !attackedSquares.includes(kingSideSquares[1]) &&
+    board[kingSideRookSquare].type === "r" &&
+    board[kingSideRookSquare].moves === 0 &&
+    getPiecesBetweenRookAndKing(board, kingSideRookSquare).length === 0
+  )
+    availableSides.push(kingSideRookSquare);
+
+  if (
+    !attackedSquares.includes(queenSideSquares[0]) &&
+    !attackedSquares.includes(queenSideSquares[1]) &&
+    board[queenSideRookSquare].type === "r" &&
+    board[queenSideRookSquare].moves === 0 &&
+    getPiecesBetweenRookAndKing(board, queenSideRookSquare).length === 0
+  )
+    availableSides.push(queenSideRookSquare);
+
+  return availableSides;
+}
+
+export function getPositionsAfterCastle(board: Board, rookPosition: string) {
+  const rook = board[rookPosition];
+  const kingPosition = getKingPosition(board, rook.color);
+
+  const rookCords = squaremoveCords(rookPosition);
+  const kingCords = squaremoveCords(kingPosition);
+
+  const offset = rookCords.file - kingCords.file > 0 ? 1 : -1;
+  const kingPos = calcSquare(kingPosition, { rank: 0, file: offset * 2 });
+  const rookPos = calcSquare(kingPos!, { rank: 0, file: -offset });
+  return {
+    kingPos,
+    rookPos,
+  };
 }

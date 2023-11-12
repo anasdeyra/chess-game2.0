@@ -1,6 +1,7 @@
 import { createSlice } from "@reduxjs/toolkit";
 import type { RootState } from "redux/store";
 import reducers from "./reducers";
+import { getKingPosition, getAvailableCastles } from "src/utils";
 
 // Define a type for the slice state
 export interface GameState {
@@ -15,6 +16,7 @@ export interface GameState {
   castles: Record<PieceColor, CastleSides>;
   board: Board;
   history: string;
+  enPassente: string | null;
 }
 
 // Define the initial state using that type
@@ -33,6 +35,7 @@ const initialState: GameState = {
   },
   board: {},
   history: "",
+  enPassente: null,
 };
 
 export const gameSlice = createSlice({
@@ -52,6 +55,9 @@ export const gameSlice = createSlice({
         state.fullMoves++;
         state.turn = "white";
       } else state.turn = "black";
+    },
+    setEnPassente: (state, { payload }) => {
+      state.enPassente = payload;
     },
   },
 });

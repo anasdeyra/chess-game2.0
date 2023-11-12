@@ -1,7 +1,7 @@
 import Square from "./Square";
 import Piece from "./Piece";
 import { ReactNode } from "react";
-import { SimpleGrid } from "@mantine/core";
+import { Group, SimpleGrid, Stack } from "@mantine/core";
 
 export default function Board({ board }: { board: Board }) {
   const ranks = ["1", "2", "3", "4", "5", "6", "7", "8"].reverse();
@@ -38,9 +38,25 @@ export default function Board({ board }: { board: Board }) {
     squareColor === "black" ? (squareColor = "white") : (squareColor = "black");
   });
   return (
-    <SimpleGrid spacing={0} cols={8}>
-      {b}
-    </SimpleGrid>
+    <Group align="stretch" spacing={"xs"}>
+      <SimpleGrid sx={{ height: 48 * 8 }} spacing={0} cols={1}>
+        {ranks.map((r, key) => (
+          <div style={{ display: "flex", alignItems: "center" }} key={key}>
+            {r}
+          </div>
+        ))}
+      </SimpleGrid>
+      <Stack spacing={"xs"}>
+        <SimpleGrid spacing={0} cols={8}>
+          {b}
+        </SimpleGrid>
+        <SimpleGrid spacing={0} cols={8}>
+          {files.map((f, key) => (
+            <div key={key}>{f}</div>
+          ))}
+        </SimpleGrid>
+      </Stack>
+    </Group>
   );
 }
 

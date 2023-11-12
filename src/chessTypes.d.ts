@@ -1,7 +1,7 @@
 export {};
 
 declare global {
-  type PieceType = "p" | "n" | "b" | "k" | "q" | "r" | string;
+  type PieceType = "p" | "n" | "b" | "k" | "q" | "r";
 
   type PieceColor = "black" | "white";
 
@@ -19,7 +19,7 @@ declare global {
     moves: number;
   }
 
-  type Board = PartialRecord<Square, Piece>;
+  type Board = Record<Square, Piece>;
 
   interface ChessMove {
     from: Square;

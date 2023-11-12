@@ -14,4 +14,5 @@ export default function move(
   state.board[to].position = to;
 
   piece.moves++;
+  state.enPassente = null;
 }
