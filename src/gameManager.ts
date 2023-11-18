@@ -47,13 +47,6 @@ export function useGameManager() {
   };
 
   const moveSelectedPieceTo = (square: string) => {
-    const legalMoves = calcLegalMoves(
-      game.board,
-      selectedSquare!,
-      game.enPassente
-    );
-
-    if (!legalMoves.includes(square)) return;
 
     // check if capturing an enPasente pawn
     const offset = game.turn === "white" ? 1 : -1;
@@ -165,6 +158,12 @@ export function useGameManager() {
 
     //execute action
     else {
+      const legalMoves = calcLegalMoves(
+        game.board,
+        selectedSquare!,
+        game.enPassente
+      );
+      if(!legalMoves.includes(square)) return unSelectPiece()
       moveSelectedPieceTo(square);
     }
   };
