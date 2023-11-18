@@ -26,6 +26,7 @@ export default function fen(
             payload: {
               square: currentSquare,
               color,
+              // @ts-ignore
               type: square.toLocaleLowerCase(),
             },
             type: "game/spawn",
